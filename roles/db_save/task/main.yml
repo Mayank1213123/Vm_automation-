@@ -1,0 +1,33 @@
+
+- name: Save user data to MySQL
+  community.mysql.mysql_query:
+    login_user: root
+    login_password: Mainhuna@100
+    login_db: vm_db
+    query: SELECT 1;
+  register: db_connection_test
+
+- name: Create vm_info table if it doesn't exist
+  community.mysql.mysql_query:
+    login_user: root
+    login_password: Mainhuna@100
+    login_db: vm_db
+    query: >
+      CREATE TABLE IF NOT EXISTS vm_info (
+        vm_name VARCHAR(100),
+        os_type VARCHAR(50),
+        ram INT,
+        disk_size VARCHAR(20),
+        cpu INT
+      );
+  when: db_connection_test is succeeded
+
+- name: Insert VM data
+  community.mysql.mysql_query:
+    login_user: root
+    login_password: Mainhuna@100
+    login_db: vm_db
+    query: >
+      INSERT INTO vm_info (vm_name, os_type, ram, disk_size, cpu)
+      VALUES ('{{ vm_name }}', '{{ os_type }}', {{ ram }}, '{{ disk_size }}', {{ cpu }});
+  when: db_connection_test is succeeded
