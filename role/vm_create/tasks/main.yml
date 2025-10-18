@@ -1,0 +1,57 @@
+
+- name: Set base image path based on OS type
+  set_fact:
+    base_image: "/var/lib/libvirt/images/{{ os_type }}.qcow2"
+
+- name: Copy base qcow2 image for full VM image
+  copy:
+    src: "{{ base_image }}"
+    dest: "/var/lib/libvirt/images/{{ vm_name }}.qcow2"
+    remote_src: yes
+
+- name: Install virtual machine using existing QCOW2 image
+  command: >
+    virt-install
+    --name {{ vm_name }}
+    --memory {{ ram }}
+    --vcpus {{ cpu }}
+    --disk path=/var/lib/libvirt/images/{{ vm_name }}.qcow2,format=qcow2
+    --import
+    --os-variant generic
+    --network network=default
+    --graphics vnc
+    --noautoconsole
+
+- name: Wait for VM to get an IP address
+  shell: |
+    sleep 10
+    virsh domifaddr {{ vm_name }} --source lease | grep -w ipv4 | awk '{print $4}' | cut -d/ -f1
+  register: vm_ip
+  retries: 10
+  delay: 5
+  until: vm_ip.stdout != ""
+  changed_when: false
+
+- name: Set fact for VM IP
+  set_fact:
+    vm_ip_address: "{{ vm_ip.stdout }}"
+
+- name: Print VM IP Address
+  debug:
+    msg: "VM '{{ vm_name }}' IP address is: {{ vm_ip_address }}"
+    
+- name: Get default username from base image (by checking /home)
+  command: >
+    guestfish --ro -a /var/lib/libvirt/images/{{ vm_name }}.qcow2 -i ls /home
+  register: image_user
+  failed_when: image_user.rc != 0 and image_user.stdout == ""
+  changed_when: false
+
+- name: Set default username from image
+  set_fact:
+    default_vm_username: "{{ image_user.stdout_lines[0] | default('unknown') }}"
+
+- name: Show default username from base image
+  debug:
+    msg: "Default username inside the base image is: {{ default_vm_username }}"
+
