@@ -1,0 +1,40 @@
+
+---
+- name: Check if OS type is valid
+  fail:
+    msg: "Invalid OS type '{{ os_type }}'. Only ubuntu, fedora, or debian are supported."
+  when: os_type not in ['ubuntu', 'fedora', 'debian']
+
+- name: Calculate total available memory (RAM + Swap)
+  set_fact:
+    available_ram_mb: "{{ ansible_memory_mb.real.free + ansible_memory_mb.swap.free }}"
+
+- name: Check if requested RAM is available
+  fail:
+    msg: "Not enough RAM. Requested: {{ ram | int }}MB, Available: {{ available_ram_mb }}MB"
+  when: (ram | int) > (available_ram_mb | int)
+
+- name: Get available CPU cores
+  set_fact:
+    available_cpus: "{{ ansible_processor_vcpus }}"
+
+- name: Check if requested CPU cores are available
+  fail:
+    msg: "Not enough CPU cores. Requested: {{ cpu | int }}, Available: {{ available_cpus }}"
+  when: (cpu | int) > (available_cpus | int)
+
+- name: Get available disk space on /var/lib/libvirt/images
+  shell: |
+    df -BG --output=avail /var/lib/libvirt/images | tail -n1 | tr -dc '0-9'
+  register: disk_space
+  changed_when: false
+  failed_when: disk_space.rc != 0
+
+- name: Set available disk fact
+  set_fact:
+    available_disk_gb: "{{ disk_space.stdout | int }}"
+
+- name: Check if enough disk space is available
+  fail:
+    msg: "Not enough disk space. Requested: {{ disk_size | int }}GB, Available: {{ available_disk_gb }}GB"
+  when: (disk_size | int) > (available_disk_gb | int)
