@@ -1,0 +1,30 @@
+---
+- name: VM Creation With Input Validation
+  hosts: localhost
+  gather_facts: true
+
+  vars_prompt:
+    - name: "vm_name"
+      prompt: "Enter VM name"
+      private: no
+
+    - name: "os_type"
+      prompt: "Enter OS type (ubuntu/fedora/debian)"
+      private: no
+
+    - name: "ram"
+      prompt: "Enter RAM in MB (e.g. 2048)"
+      private: no
+
+    - name: "disk_size"
+      prompt: "Enter Disk Size in GB (e.g. 20)"
+      private: no
+
+    - name: "cpu"
+      prompt: "Enter number of CPU cores"
+      private: no
+
+  roles:
+    - validation
+    - vm_create
+    - db_save
